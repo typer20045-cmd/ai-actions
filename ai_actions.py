@@ -418,10 +418,10 @@ def call_llm(prompt: str, cfg: dict) -> str:
         if o.get("api_key"):
             headers["Authorization"] = f"Bearer {o['api_key']}"
     else:
-        url = cfg.get("host", "http://127.0.0.1:11434").rstrip("/") + "/api/generate"
+        url = cfg.get("host", "http://127.0.0.1:11434").rstrip("/") + "/api/chat"
         body = {
             "model": cfg.get("model", "qwen3:8b"),
-            "prompt": prompt,
+            "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "think": bool(cfg.get("think", False)),
             "keep_alive": cfg.get("keep_alive", "10m"),
@@ -459,9 +459,7 @@ def call_llm(prompt: str, cfg: dict) -> str:
         except (KeyError, IndexError, TypeError):
             fail("Неожиданный ответ OpenAI-совместимого API:\n" + str(data)[:400])
 
-    text = (data.get("response") or "").strip()
-    if not text and data.get("thinking"):
-        text = str(data["thinking"]).strip()
+    text = ((data.get("message") or {}).get("content") or "").strip()
     for junk in ("/no_think", "<|im_start|>", "<|im_end|>"):
         text = text.replace(junk, "")
     return text.strip()
