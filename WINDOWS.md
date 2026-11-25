@@ -4,6 +4,8 @@
 которая использует ту же логику работы с Ollama / OpenAI-совместимым API,
 но не зависит от KDE и Wayland.
 
+**Скачать:** [ai-actions.exe](https://github.com/typer20045-cmd/ai-actions/releases/download/v1.2.0-windows/ai-actions.exe) · [все релизы](https://github.com/typer20045-cmd/ai-actions/releases).
+
 ## Что работает
 
 - Глобальные горячие клавиши (через Win32 `RegisterHotKey`).
