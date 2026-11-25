@@ -50,7 +50,8 @@ write_desktop() {
     if [[ "$file" == "settings" ]]; then
         nodisplay="false"
         extra="GenericName=Настройки ИИ-действий
-Keywords=AI;Ollama;настройки;горячие клавиши;"
+GenericName[en]=AI actions settings
+Keywords=AI;Ollama;настройки;горячие клавиши;settings;hotkeys;"
     fi
     cat > "$APPS_DIR/$name" <<EOF
 [Desktop Entry]

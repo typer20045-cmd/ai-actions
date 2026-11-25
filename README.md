@@ -1,5 +1,7 @@
 # ai-actions
 
+[English](README.en.md) · **Русский**
+
 **ИИ-действия по горячей клавише для KDE Plasma 6 (Wayland).**
 
 Выдели текст — нажми `Meta+Shift+T` — получи перевод. Всё считается локально
@@ -13,6 +15,11 @@
 ![Python](https://img.shields.io/badge/python-3.9%2B-3776ab?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![No cloud](https://img.shields.io/badge/100%25-local-no%20telemetry-important)
+
+## Что нового
+
+**v1.1** — окно настроек, скачивание моделей, выбор языка перевода, контроль
+памяти и временные скриншоты. [Все релизы](https://github.com/typer20045-cmd/ai-actions/releases).
 
 ## Возможности
 
