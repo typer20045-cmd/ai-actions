@@ -70,6 +70,11 @@ ACTION_TITLES = {
     "exit": "Выход",
 }
 
+RECOMMENDED_MODELS = [
+    "qwen3:8b", "qwen3:4b", "qwen3:1.7b", "llama3.2:3b",
+    "gemma3:4b", "mistral:7b", "phi4-mini:3.8b", "deepseek-r1:8b",
+]
+
 MODIFIERS = {"Alt": 0x0001, "Ctrl": 0x0002, "Shift": 0x0004, "Win": 0x0008}
 MOD_NOREPEAT = 0x4000
 WM_HOTKEY = 0x0312
@@ -185,6 +190,7 @@ class App:
         self._settings_window = None
         self._download_btn = None
         self._download_status = None
+        self._model_combo = None
 
         self.thread = HotkeyThread(self.hotkeys, self.events)
         self.thread.start()
@@ -226,6 +232,9 @@ class App:
                 self._download_btn.config(state="normal")
             if self._download_status is not None:
                 self._download_status.config(text="")
+        elif kind == "model_list":
+            if self._model_combo is not None:
+                self._model_combo["values"] = item[1]
 
     def _on_hotkey(self, action: str) -> None:
         if action == "exit":
@@ -406,6 +415,24 @@ class App:
 
     # -------------------------------------------------------------- настройки
 
+    def _fetch_models(self, host: str) -> None:
+        """Подтягивает список моделей из Ollama и рекомендуемые."""
+        host = host.strip().rstrip("/") or "http://127.0.0.1:11434"
+
+        def work() -> None:
+            installed: list[str] = []
+            try:
+                req = urllib.request.Request(host + "/api/tags", method="GET")
+                with urllib.request.urlopen(req, timeout=6) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                installed = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
+            except Exception as exc:
+                core.log(f"model list error: {exc}")
+            names = installed + [m for m in RECOMMENDED_MODELS if m not in installed]
+            self.events.put(("model_list", names))
+
+        threading.Thread(target=work, daemon=True).start()
+
     def open_settings(self) -> None:
         if self._settings_window is not None:
             try:
@@ -430,14 +457,21 @@ class App:
 
         ttk.Label(main, text="Модель:").grid(row=0, column=0, sticky="w", pady=4)
         model_var = tk.StringVar(value=cfg.get("model", "qwen3:8b"))
-        model_entry = ttk.Entry(main, textvariable=model_var, width=36)
-        model_entry.grid(row=0, column=1, sticky="ew", pady=4)
+        model_combo = ttk.Combobox(main, textvariable=model_var, width=34)
+        model_combo.set(model_var.get())
+        model_combo.grid(row=0, column=1, sticky="ew", pady=4)
+        self._model_combo = model_combo
 
         ttk.Label(main, text="Хост Ollama:").grid(row=1, column=0, sticky="w", pady=4)
         host_var = tk.StringVar(value=cfg.get("host", "http://127.0.0.1:11434"))
         ttk.Entry(main, textvariable=host_var, width=36).grid(
             row=1, column=1, sticky="ew", pady=4
         )
+        ttk.Button(
+            main, text="Обновить список",
+            command=lambda: self._fetch_models(host_var.get()),
+        ).grid(row=0, column=2, padx=4, sticky="w")
+        self._fetch_models(host_var.get())
 
         ttk.Label(main, text="Язык перевода:").grid(row=2, column=0, sticky="w", pady=4)
         lang_var = tk.StringVar(value=cfg.get("translate_target", "auto"))
@@ -545,8 +579,16 @@ class App:
             )
 
         def save() -> None:
+            model = model_var.get().strip()
+            if not model or model.lower() in ("ollama", "model", "llm"):
+                messagebox.showerror(
+                    "Модель",
+                    "Укажи имя модели из списка, например qwen3:8b или deepseek-r1:8b.",
+                    parent=win,
+                )
+                return
             new_cfg = core.load_config()
-            new_cfg["model"] = model_var.get().strip() or "qwen3:8b"
+            new_cfg["model"] = model
             new_cfg["host"] = host_var.get().strip() or "http://127.0.0.1:11434"
             selected = lang_combo.get()
             new_cfg["translate_target"] = next(
@@ -588,6 +630,7 @@ class App:
         self._settings_window = None
         self._download_btn = None
         self._download_status = None
+        self._model_combo = None
         if win is not None:
             win.destroy()
 

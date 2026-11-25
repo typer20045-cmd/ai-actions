@@ -16,7 +16,7 @@
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![No cloud](https://img.shields.io/badge/100%25-local-no%20telemetry-important)
 
-> **Windows:** есть экспериментальный `.exe` — [скачать ai-actions.exe](https://github.com/typer20045-cmd/ai-actions/releases/download/v1.2.2-windows/ai-actions.exe). Подробности — [WINDOWS.md](WINDOWS.md).
+> **Windows:** есть экспериментальный `.exe` — [скачать ai-actions.exe](https://github.com/typer20045-cmd/ai-actions/releases/download/v1.2.3-windows/ai-actions.exe). Подробности — [WINDOWS.md](WINDOWS.md).
 
 ## Что нового
 
