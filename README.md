@@ -16,6 +16,8 @@
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![No cloud](https://img.shields.io/badge/100%25-local-no%20telemetry-important)
 
+> **Windows:** есть экспериментальный `.exe` — см. [WINDOWS.md](WINDOWS.md).
+
 ## Что нового
 
 **v1.1** — окно настроек, скачивание моделей, выбор языка перевода, контроль

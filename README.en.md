@@ -16,6 +16,8 @@ is copied to the clipboard automatically.
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![No cloud](https://img.shields.io/badge/100%25-local-no%20telemetry-important)
 
+> **Windows:** an experimental `.exe` is available — see [WINDOWS.md](WINDOWS.md).
+
 ## What's new
 
 **v1.1** — settings window, model downloads, translation target language,
