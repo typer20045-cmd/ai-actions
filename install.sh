@@ -24,7 +24,7 @@ uninstall() {
 command -v python3 >/dev/null 2>&1 || { warn "Нет python3"; exit 1; }
 
 mkdir -p "$BIN_DIR" "$APPS_DIR"
-chmod +x "$DIR/ai_actions.py"
+chmod +x "$DIR/ai_actions.py" "$DIR/ai_settings.py"
 ln -sfn "$DIR/ai_actions.py" "$TARGET"
 ok "Скрипт: $TARGET"
 
@@ -39,6 +39,7 @@ ACTIONS=(
   "fix|Meta+Shift+F|AI: исправить текст|tools-check-spelling|fix"
   "ocr|Meta+Shift+O|AI: объяснить область экрана (OCR)|view-fullscreen|explain --screen"
   "question|Meta+Shift+Q|AI: спросить модель|system-search|ask"
+  "settings|Meta+Shift+P|AI: настройки|preferences-system|settings"
 )
 
 write_desktop() {
@@ -96,7 +97,14 @@ if ((${#missing[@]})); then
     say "(kdialog/qdbus6/spectacle обычно уже есть в KDE.)"
 fi
 
+if ! python3 -c "import PyQt6" >/dev/null 2>&1; then
+    say ""
+    warn "Нет PyQt6 — графические настройки не откроются."
+    say "  sudo apt install -y python3-pyqt6"
+fi
+
 say ""
 say "Диагностика:  ai-actions doctor"
-say "Настройки:    ~/.config/ai-actions/config.json"
+say "Настройки:    ai-actions settings  (Meta+Shift+P)"
+say "Файл:         ~/.config/ai-actions/config.json"
 say "Удалить:      $DIR/install.sh --uninstall"

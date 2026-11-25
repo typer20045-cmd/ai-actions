@@ -42,6 +42,8 @@ DEFAULTS = {
     "timeout": 180,
     "max_input_chars": 6000,
     "ocr_lang": "rus+eng",
+    "translate_target": "auto",  # auto | ru | en | de | ...
+    "warmup_on_login": False,
     "openai": {
         "base_url": "http://127.0.0.1:3001/v1",
         "api_key": "",
@@ -89,6 +91,23 @@ ACTIONS = {
         "icon": "system-search",
         "prompt": None,  # инструкция вводится в диалоге
     },
+}
+
+LANGUAGE_NAMES = {
+    "ru": "русский",
+    "en": "английский",
+    "uk": "украинский",
+    "de": "немецкий",
+    "fr": "французский",
+    "es": "испанский",
+    "it": "итальянский",
+    "pt": "португальский",
+    "pl": "польский",
+    "tr": "турецкий",
+    "zh": "китайский",
+    "ja": "японский",
+    "ko": "корейский",
+    "ar": "арабский",
 }
 
 CONFIG_TEMPLATE = json.dumps(DEFAULTS, ensure_ascii=False, indent=2)
@@ -248,10 +267,23 @@ def set_clipboard(text: str) -> None:
 # ---------------------------------------------------------------- ввод
 
 
+def cleanup_temp_screenshots(max_age: float = 3600) -> None:
+    """Удаляет старые снимки, оставшиеся после сбоев (сами снимки живут до OCR)."""
+    tmp = Path(tempfile.gettempdir())
+    now = time.time()
+    for path in tmp.glob("ai-actions-*.png"):
+        try:
+            if now - path.stat().st_mtime > max_age:
+                path.unlink()
+        except OSError:
+            pass
+
+
 def screenshot(mode: str) -> str:
     """Делает снимок и возвращает путь. mode: region | full | window."""
     if not have("spectacle"):
         fail("Не найден spectacle — нужен для снимков экрана.")
+    cleanup_temp_screenshots()
     fd, path = tempfile.mkstemp(prefix="ai-actions-", suffix=".png")
     os.close(fd)
     os.unlink(path)
@@ -301,7 +333,15 @@ def read_input(args: argparse.Namespace, cfg: dict) -> tuple[str, bool]:
         return ocr(args.image, cfg), True
     if args.screen or args.full or args.window:
         mode = "full" if args.full else "window" if args.window else "region"
-        return ocr(screenshot(mode), cfg), True
+        path = screenshot(mode)
+        try:
+            return ocr(path, cfg), True
+        finally:
+            # Снимок нужен только для OCR — не оставляем его на диске.
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
     if args.clipboard:
         return get_clipboard(), False
     if args.primary:
@@ -453,6 +493,18 @@ def show_result(title: str, text: str) -> None:
 # ---------------------------------------------------------------- команды
 
 
+def translate_instruction(cfg: dict) -> str:
+    """Инструкция перевода с учётом выбранного языка назначения."""
+    target = (cfg.get("translate_target") or "auto").lower()
+    name = LANGUAGE_NAMES.get(target)
+    if name:
+        return (
+            f"Переведи этот текст на {name} язык. "
+            "Верни только перевод, без пояснений и кавычек."
+        )
+    return ACTIONS["translate"]["prompt"]
+
+
 def build_prompt(action: str, text: str, cfg: dict, args: argparse.Namespace) -> str:
     if action == "ask":
         question = args.prompt or ask_dialog("Что спросить у модели?")
@@ -463,7 +515,10 @@ def build_prompt(action: str, text: str, cfg: dict, args: argparse.Namespace) ->
         return question
 
     spec = ACTIONS[action]
-    instruction = args.prompt or spec["prompt"]
+    if action == "translate":
+        instruction = args.prompt or translate_instruction(cfg)
+    else:
+        instruction = args.prompt or spec["prompt"]
     ocr_note = ""
     if args.image or args.screen or args.full or args.window:
         ocr_note = "Текст ниже распознан с экрана через OCR, в нём могут быть ошибки.\n\n"
@@ -514,6 +569,58 @@ def cmd_run(action: str, args: argparse.Namespace) -> None:
     show_result(title, strip_markdown(shown))
 
 
+def cmd_warmup(args: argparse.Namespace) -> int:
+    """Прогревает модель, не показывая окон. Нужен для автозапуска."""
+    cfg = load_config()
+    if (cfg.get("api") or "ollama").lower() != "ollama":
+        return 0
+    host = cfg.get("host", "http://127.0.0.1:11434").rstrip("/")
+    body = {
+        "model": cfg.get("model", "qwen3:8b"),
+        "prompt": "hi",
+        "stream": False,
+        "keep_alive": cfg.get("keep_alive", "10m"),
+        "options": {"num_predict": 1},
+    }
+    req = urllib.request.Request(
+        host + "/api/generate",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=float(cfg.get("timeout", 180))) as resp:
+            resp.read()
+        log("warmup ok")
+    except Exception as exc:  # noqa: BLE001
+        log(f"warmup failed: {exc}")
+    return 0
+
+
+def cmd_settings(args: argparse.Namespace) -> int:
+    """Запускает графическое окно настроек (PyQt6)."""
+    import importlib.util
+
+    if importlib.util.find_spec("PyQt6") is None:
+        fail(
+            "Для окна настроек нужен PyQt6.\n\n"
+            "Установи:\n  sudo apt install -y python3-pyqt6"
+        )
+    script = Path(__file__).resolve().parent / "ai_settings.py"
+    if not script.exists():
+        fail(f"Не найден {script}.\nОбнови проект: cd ~/ai-actions && git pull")
+    try:
+        subprocess.Popen(
+            [sys.executable, str(script)],
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError as exc:
+        fail(f"Не удалось открыть настройки: {exc}")
+    return 0
+
+
 def cmd_doctor(args: argparse.Namespace) -> None:
     cfg = load_config()
     lines = []
@@ -529,6 +636,9 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     check("wl-clipboard (выделение)", have("wl-paste"), "sudo apt install wl-clipboard")
     check("spectacle (скриншоты)", have("spectacle"), "sudo apt install spectacle")
     check("tesseract (OCR)", have("tesseract"), "sudo apt install tesseract-ocr tesseract-ocr-rus")
+    import importlib.util
+    check("PyQt6 (окно настроек)", importlib.util.find_spec("PyQt6") is not None,
+          "sudo apt install python3-pyqt6")
 
     api = (cfg.get("api") or "ollama").lower()
     if api == "openai":
@@ -555,6 +665,9 @@ def cmd_doctor(args: argparse.Namespace) -> None:
             lines.append(f"{no} Ollama: {host} — {exc}")
 
     lines.append("")
+    lines.append(f"Модель: {cfg.get('model')} · keep_alive: {cfg.get('keep_alive')}")
+    target = cfg.get("translate_target", "auto")
+    lines.append(f"Перевод: {LANGUAGE_NAMES.get(target, 'авто (RU ⇄ EN)')}")
     lines.append(f"Конфиг: {CONFIG_PATH}")
     lines.append(f"Лог:    {LOG_PATH}")
     text = "\n".join(lines)
@@ -576,7 +689,7 @@ def main(argv: list[str] | None = None) -> int:
         description="ИИ-действия по горячей клавише: перевод, объяснение, OCR и другое.",
     )
     p.add_argument("action", nargs="?", default="explain",
-                   choices=sorted(ACTIONS) + ["doctor"],
+                   choices=sorted(ACTIONS) + ["doctor", "settings", "warmup"],
                    help="что сделать (по умолчанию explain)")
     p.add_argument("--text", help="взять этот текст вместо выделения")
     p.add_argument("--stdin", action="store_true", help="читать текст из stdin")
@@ -589,12 +702,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--prompt", help="своя инструкция для модели")
     p.add_argument("--no-window", action="store_true", help="только уведомление, без окна")
     p.add_argument("--print-only", action="store_true", help="doctor: только stdout")
-    p.add_argument("--version", action="version", version="ai-actions 1.0")
+    p.add_argument("--version", action="version", version="ai-actions 1.1.0")
 
     args = p.parse_args(argv)
     try:
         if args.action == "doctor":
             cmd_doctor(args)
+        elif args.action == "settings":
+            return cmd_settings(args)
+        elif args.action == "warmup":
+            return cmd_warmup(args)
         else:
             cmd_run(args.action, args)
     except KeyboardInterrupt:
