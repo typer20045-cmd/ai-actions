@@ -45,6 +45,13 @@ ACTIONS=(
 write_desktop() {
     local file="$1" shortcut="$2" title="$3" icon="$4" cmd="$5"
     local name="ai-actions-${file}.desktop"
+    local nodisplay="true"
+    local extra=""
+    if [[ "$file" == "settings" ]]; then
+        nodisplay="false"
+        extra="GenericName=Настройки ИИ-действий
+Keywords=AI;Ollama;настройки;горячие клавиши;"
+    fi
     cat > "$APPS_DIR/$name" <<EOF
 [Desktop Entry]
 Type=Application
@@ -54,7 +61,8 @@ Exec=$TARGET $cmd
 Icon=$icon
 Terminal=false
 StartupNotify=false
-NoDisplay=true
+NoDisplay=$nodisplay
+$extra
 X-KDE-Shortcuts=$shortcut
 Categories=Utility;
 EOF
