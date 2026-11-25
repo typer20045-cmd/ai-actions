@@ -18,7 +18,3 @@ venv/
 Thumbs.db
 *.log
 
-# Сборка Windows/PyInstaller
-build/
-dist/
-*.spec

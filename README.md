@@ -17,8 +17,6 @@
 ![No cloud](https://img.shields.io/badge/100%25-local-no%20telemetry-important)
 [![Релизы](https://img.shields.io/github/v/release/typer20045-cmd/ai-actions?logo=github)](https://github.com/typer20045-cmd/ai-actions/releases)
 
-> **Windows:** есть экспериментальный `.exe` — [скачать ai-actions.exe](https://github.com/typer20045-cmd/ai-actions/releases/download/v1.2.3-windows/ai-actions.exe). Подробности — [WINDOWS.md](WINDOWS.md).
-
 ## Что нового
 
 **v1.1** — окно настроек, скачивание моделей, выбор языка перевода, контроль
