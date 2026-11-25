@@ -15,6 +15,7 @@
 ![Python](https://img.shields.io/badge/python-3.9%2B-3776ab?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![No cloud](https://img.shields.io/badge/100%25-local-no%20telemetry-important)
+[![Релизы](https://img.shields.io/github/v/release/typer20045-cmd/ai-actions?logo=github)](https://github.com/typer20045-cmd/ai-actions/releases)
 
 > **Windows:** есть экспериментальный `.exe` — [скачать ai-actions.exe](https://github.com/typer20045-cmd/ai-actions/releases/download/v1.2.3-windows/ai-actions.exe). Подробности — [WINDOWS.md](WINDOWS.md).
 
