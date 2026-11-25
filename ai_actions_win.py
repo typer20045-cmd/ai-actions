@@ -183,6 +183,8 @@ class App:
         self.hotkeys = dict(DEFAULT_HOTKEYS)
         self.hotkeys.update(self.cfg.get("hotkeys") or {})
         self._settings_window = None
+        self._download_btn = None
+        self._download_status = None
 
         self.thread = HotkeyThread(self.hotkeys, self.events)
         self.thread.start()
@@ -216,6 +218,14 @@ class App:
             messagebox.showerror("AI Actions", item[1])
         elif kind == "info":
             messagebox.showinfo("AI Actions", item[1])
+        elif kind == "status":
+            if self._download_status is not None:
+                self._download_status.config(text=item[1])
+        elif kind == "download_done":
+            if self._download_btn is not None:
+                self._download_btn.config(state="normal")
+            if self._download_status is not None:
+                self._download_status.config(text="")
 
     def _on_hotkey(self, action: str) -> None:
         if action == "exit":
@@ -455,11 +465,18 @@ class App:
             model = model_var.get().strip()
             host = host_var.get().strip().rstrip("/")
             if not model:
+                self.events.put(("error", "Укажи имя модели."))
                 return
+            if not host:
+                self.events.put(("error", "Укажи хост Ollama."))
+                return
+            if self._download_btn is not None:
+                self._download_btn.config(state="disabled")
+            self.events.put(("status", f"Подключаюсь к {host}…"))
 
             def work() -> None:
                 try:
-                    body = json.dumps({"model": model, "stream": False}).encode()
+                    body = json.dumps({"model": model, "stream": True}).encode()
                     req = urllib.request.Request(
                         host + "/api/pull",
                         data=body,
@@ -467,25 +484,51 @@ class App:
                         method="POST",
                     )
                     with urllib.request.urlopen(req, timeout=3600) as resp:
-                        resp.read()
+                        for raw in resp:
+                            raw = raw.strip()
+                            if not raw:
+                                continue
+                            obj = json.loads(raw)
+                            if obj.get("error"):
+                                raise RuntimeError(str(obj["error"]))
+                            status = obj.get("status") or ""
+                            total = int(obj.get("total") or 0)
+                            completed = int(obj.get("completed") or 0)
+                            if total:
+                                percent = int(completed * 100 / total)
+                                self.events.put(("status", f"{status} — {percent}%"))
+                            elif status:
+                                self.events.put(("status", status))
                     self.events.put(("info", f"Модель {model} скачана."))
                 except Exception as exc:
-                    self.events.put(("error", f"Не удалось скачать модель:\n{exc}"))
+                    self.events.put((
+                        "error",
+                        f"Не удалось скачать модель:\n{exc}\n\n"
+                        f"Проверь хост Ollama: {host}\n"
+                        "Если Ollama в другой машине/VM, укажи её IP, "
+                        "например http://10.0.2.2:11434",
+                    ))
+                finally:
+                    self.events.put(("download_done",))
 
             threading.Thread(target=work, daemon=True).start()
 
-        ttk.Button(main, text="Скачать модель", command=download).grid(
-            row=4, column=1, sticky="w", pady=8
-        )
+        download_btn = ttk.Button(main, text="Скачать модель", command=download)
+        download_btn.grid(row=4, column=1, sticky="w", pady=8)
+        self._download_btn = download_btn
+        download_status = ttk.Label(main, text="", foreground="#0066cc")
+        download_status.grid(row=5, column=0, columnspan=2, sticky="w")
+        self._download_status = download_status
 
         hint = ttk.Label(
             main,
-            text="Для OCR нужен установленный Tesseract OCR\n"
-                 "(https://github.com/UB-Mannheim/tesseract/wiki),\n"
-                 "иначе распознавание скриншота не заработает.",
+            text="Хост Ollama: если модель скачивается в другой машине или VM, "
+                 "укажи её адрес, например http://10.0.2.2:11434.\n"
+                 "Для OCR нужен установленный Tesseract OCR "
+                 "(https://github.com/UB-Mannheim/tesseract/wiki).",
             foreground="#666666",
         )
-        hint.grid(row=5, column=0, columnspan=2, sticky="w", pady=(16, 4))
+        hint.grid(row=6, column=0, columnspan=2, sticky="w", pady=(16, 4))
 
         # --- клавиши
         keys = ttk.Frame(notebook, padding=10)
@@ -543,6 +586,8 @@ class App:
     def _close_settings(self) -> None:
         win = self._settings_window
         self._settings_window = None
+        self._download_btn = None
+        self._download_status = None
         if win is not None:
             win.destroy()
 
