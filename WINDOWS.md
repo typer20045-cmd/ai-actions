@@ -66,14 +66,6 @@ py -3.12 -m PyInstaller --noconsole --onefile --clean `
   --name ai-actions --hidden-import=ai_actions ai_actions_win.py
 ```
 
-### На Linux через Wine
-
-Скрипт сам поставит Windows Python и зависимости в Wine-префикс:
-
-```bash
-./build_windows.sh
-```
-
 Результат: `dist/ai-actions.exe`.
 
 ## Ограничения
